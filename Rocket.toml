@@ -1,2 +1,0 @@
-[global.databases.tezbro]
-url = "postgres://localhost?dbname=tezbro&user=postgres&password=mysecretpassword"

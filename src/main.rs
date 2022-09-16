@@ -1,18 +1,16 @@
-mod photo;
+use dotenv::dotenv;
+
 mod db;
+mod photo;
 
 #[macro_use]
 extern crate rocket;
 
-#[get("/")]
-fn index() -> &'static str {
-    "Hello, world!"
-}
-
 #[launch]
 fn rocket() -> _ {
+    dotenv().ok();
+
     rocket::build()
         .attach(db::stage())
-        .mount("/", routes![index])
         .mount("/photo", photo::routes())
 }

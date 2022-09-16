@@ -1,5 +1,5 @@
-use rocket::Route;
 use rocket::serde::{json::Json, uuid::Uuid, Deserialize, Serialize};
+use rocket::Route;
 use rocket_db_pools::{sqlx, Connection};
 
 use sqlx::types::Uuid as SqlxUuid;
@@ -34,7 +34,7 @@ async fn get_one(mut db: Connection<Db>, id: Uuid) -> Option<Json<Photo>> {
                 .cinema_id
                 .expect("funny cinema_id is FK but RUST says in may be None")
                 .to_string(),
-            link: row.link.expect("rightly").to_string(),
+            link: row.link.expect("rightly"),
         })
     })
     .ok()
