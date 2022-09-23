@@ -7,7 +7,7 @@ CREATE TYPE "dashboard"."role" AS ENUM (
 
 CREATE TABLE "dashboard"."cinema" (
   "id" uuid PRIMARY KEY,
-  "addres" varchar NOT NULL,
+  "address" varchar NOT NULL,
   "coordinates" point NOT NULL,
   "admin_id" uuid
 );
