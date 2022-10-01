@@ -27,25 +27,5 @@ pub fn hashing_pswd() -> Result<(), Unspecified> {
     println!("Salt: {}", HEXUPPER.encode(&salt));
     println!("PBKDF2 hash: {}", HEXUPPER.encode(&pbkdf2_hash));
 
-    let should_succeed = pbkdf2::verify(
-        pbkdf2::PBKDF2_HMAC_SHA512,
-        n_iter,
-        &salt,
-        password.as_bytes(),
-        &pbkdf2_hash,
-    );
-    let wrong_password = "Definitely not the correct password";
-    let should_fail = pbkdf2::verify(
-        pbkdf2::PBKDF2_HMAC_SHA512,
-        n_iter,
-        &salt,
-        wrong_password.as_bytes(),
-        &pbkdf2_hash,
-    );
-
-    assert!(should_succeed.is_ok());
-    assert!(!should_fail.is_ok());
-
     Ok(())
 }
-
