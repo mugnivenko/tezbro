@@ -5,9 +5,9 @@ edition = "2021"
 
 [dependencies]
 dotenv = "0.15.0"
-sha2 = "0.10.6"
 serde = "1.0.145"
 jsonwebtoken = "8.1.1"
+bcrypt = "0.13.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

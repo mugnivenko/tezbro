@@ -1,7 +1,9 @@
-use sha2::{Sha256, Digest};
+use std::borrow::Borrow;
+use bcrypt::bcrypt;
 
-pub fn encrypt(password: &str) -> Vec<u8> {
-    let mut hasher = Sha256::new();
-    hasher.update(password.to_owned() + &std::env::var("SALT").unwrap());
-    hasher.finalize().to_vec()
+pub fn encrypt(password: impl Borrow<[u8]>) -> impl Borrow<[u8]> {
+    const COST: u32 = 12;
+    let mut salt: [u8; 16] = Default::default();
+    salt.copy_from_slice(std::env::var("SALT").unwrap().as_bytes());
+    bcrypt(COST, salt, password.borrow())
 }

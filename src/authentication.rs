@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use rocket::{
     form::Form,
     http::Status,
@@ -45,7 +47,7 @@ async fn authenticate(
             let hashed_password = row.password.unwrap();
             let role = row.role.unwrap();
             let user_id = row.user_id.unwrap().as_u128();
-            if encrypt(&credentials.password) == hashed_password.as_bytes() {
+            if encrypt(credentials.password.as_bytes()).borrow() == hashed_password.as_bytes() {
                 Ok(Json(Tokens {
                     access: make_token(user_id, &Role::from_str(&role).unwrap(), &TokenType::Access),
                     refresh: make_token(user_id, &Role::from_str(&role).unwrap(), &TokenType::Refresh),
