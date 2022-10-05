@@ -1,9 +1,17 @@
-use std::sync::{Arc, Mutex};
+use rocket::{
+    form::Form,
+    http::Status,
+    serde::{json::Json, Serialize},
+    FromForm, Route,
+};
+use rocket_db_pools::Connection;
 
-use rocket::{form::Form, http::Status, response::Responder, serde::Serialize, Route, State, request::FromRequest};
-use rocket_db_pools::{rocket::serde::json::Json, Connection};
-
-use crate::{db::Db, password_encryption::encrypt_password, keys::Keys, jwt::Token, roles::Role};
+use crate::{
+    db::Db,
+    jwt::{make_token, TokenType, self},
+    password_encryption::encrypt,
+    role::Role,
+};
 
 #[derive(FromForm)]
 struct Credentials {
@@ -18,35 +26,12 @@ struct Tokens {
     refresh: String,
 }
 
-#[derive(Serialize)]
-#[serde(
-    crate = "rocket::serde",
-    rename_all = "snake_case",
-    tag = "type",
-    content = "details"
-)]
-enum Error {
-    UserNotFound,
-    BadPassword,
-    DatabaseConnectionError,
-}
-
-struct Response {
-    status: Status,
-    body: Result<Json<Tokens>, Json<Error>>,
-}
-
-impl<'r, 'o: 'r> Responder<'r, 'o> for Response {
-    fn respond_to(self, request: &'r rocket::Request<'_>) -> rocket::response::Result<'o> {
-        rocket::Response::build_from(self.body.respond_to(request).unwrap())
-            .status(self.status)
-            .ok()
-    }
-}
-
 #[post("/authenticate", data = "<credentials>")]
-async fn authenticate(mut db: Connection<Db>, keys: State<Arc<Mutex<Keys>>>, credentials: Form<Credentials>) -> Response {
-    if let Ok(response) = sqlx::query!(
+async fn authenticate(
+    mut db: Connection<Db>,
+    credentials: Form<Credentials>,
+) -> Result<Json<Tokens>, Status> {
+    if let Ok(row) = sqlx::query!(
         "SELECT password, role::text, user_id
         FROM dashboard.user
         LEFT JOIN dashboard.password ON user_id = dashboard.user.id
@@ -56,43 +41,46 @@ async fn authenticate(mut db: Connection<Db>, keys: State<Arc<Mutex<Keys>>>, cre
     .fetch_optional(&mut *db)
     .await
     {
-        if let Some(row) = response {
+        if let Some(row) = row {
             let hashed_password = row.password.unwrap();
-            if &hashed_password.as_bytes() == &encrypt_password(credentials.password.as_bytes()) {
-                Response {
-                    status: Status::Ok,
-                    body: Ok(Json(Tokens { access: todo!(), refresh: todo!() })),
-                }
+            let role = row.role.unwrap();
+            let user_id = row.user_id.unwrap().as_u128();
+            if encrypt(&credentials.password) == hashed_password.as_bytes() {
+                Ok(Json(Tokens {
+                    access: make_token(user_id, &Role::from_str(&role).unwrap(), &TokenType::Access),
+                    refresh: make_token(user_id, &Role::from_str(&role).unwrap(), &TokenType::Refresh),
+                }))
             } else {
-                Response {
-                    status: Status::BadRequest,
-                    body: Err(Json(Error::BadPassword)),
-                }
+                Err(Status::BadRequest)
             }
         } else {
-            Response {
-                status: Status::BadRequest,
-                body: Err(Json(Error::UserNotFound)),
-            }
+            Err(Status::BadRequest)
         }
     } else {
-        Response {
-            status: Status::InternalServerError,
-            body: Err(Json(Error::DatabaseConnectionError)),
-        }
+        Err(Status::InternalServerError)
     }
 }
 
 #[derive(FromForm)]
-struct RefreshToken {
-    token: String,
+pub struct RefreshToken {
+    refresh_token: String,
 }
 
-#[post("/refresh", data = "<refresh>")]
-async fn refresh(refresh_token: Form<RefreshToken>) -> Tokens {
-
+#[allow(clippy::unused_async)]
+#[post("/refresh", data = "<refresh_token>")]
+async fn refresh(refresh_token: Form<RefreshToken>) -> Result<Json<Tokens>, Status> {
+    if let Ok(claims) = jwt::decode(&refresh_token.refresh_token) {
+        let user_id = claims.sub;
+        let role = &claims.role;
+        Ok(Json(Tokens {
+            access: make_token(user_id, &Role::from_str(role).unwrap(), &TokenType::Access),
+            refresh: make_token(user_id, &Role::from_str(role).unwrap(), &TokenType::Refresh),
+        }))
+    } else {
+        Err(Status::BadRequest)
+    }
 }
 
 pub fn routes() -> Vec<Route> {
-    routes![authenticate]
+    routes![authenticate, refresh]
 }
