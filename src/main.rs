@@ -2,7 +2,7 @@ use dotenv::dotenv;
 
 mod db;
 mod photo;
-mod authentication;
+mod views;
 mod password_encryption;
 mod jwt;
 mod role;
@@ -17,5 +17,5 @@ fn rocket() -> _ {
     rocket::build()
         .attach(db::stage())
         .mount("/photo", photo::routes())
-        .mount("/", authentication::routes())
+        .mount("/", views::authentication::routes())
 }
